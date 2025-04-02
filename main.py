@@ -74,7 +74,7 @@ async def on_message(message):
                         await target_channel.send(f"Erreur : {e}")
 
     # Nouvelle fonctionnalité pour "event test"
-    if message.channel.name == "event test" and not message.author.bot:
+    if message.channel.name == "event-test" and not message.author.bot:
         try:
             await message.add_reaction('🇫🇷')  # Français
             await message.add_reaction('🇬🇧')  # Anglais
@@ -87,7 +87,7 @@ async def on_message(message):
 
 @client.event
 async def on_reaction_add(reaction, user):
-    if user.bot or reaction.message.channel.name != "event test":
+    if user.bot or reaction.message.channel.name != "event-test":
         return
 
     lang_map = {
