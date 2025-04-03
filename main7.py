@@ -68,6 +68,7 @@ async def on_message(message):
 
                         # Gérer le texte s'il existe
                         if message.content:
+                            # Traduire le texte (y compris les emojis s'ils sont mélangés avec du texte)
                             translated = translator.translate(message.content, src=source_lang, dest=target_lang).text
                             formatted_message += translated
                         else:
@@ -86,12 +87,11 @@ async def on_message(message):
                                 formatted_message += f"\n{attachment_urls}"
                                 content_added = True
 
-                            # Si rien n'a été ajouté
+                            # Si rien n'a été ajouté (pas de texte, stickers ou attachments)
                             if not content_added:
                                 formatted_message += "(Message vide)"
 
                         # Envoyer le message au salon cible
-                        logger.info(f"Envoi unique vers {channel_name}: {formatted_message}")
                         await target_channel.send(formatted_message)
 
                     except Exception as e:
@@ -110,7 +110,7 @@ async def on_message(message):
 
 @client.event
 async def on_reaction_add(reaction, user):
-    if user == client.user or reaction.message.channel.name != "event-test":  # Ignorer les réactions du bot
+    if user.bot or reaction.message.channel.name != "event-test":
         return
 
     # Utiliser reaction.emoji directement (c'est une string)
