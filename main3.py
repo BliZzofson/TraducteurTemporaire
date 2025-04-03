@@ -7,17 +7,17 @@ import threading
 import logging
 import asyncio
 
-# Configurer les logs
+# Configurer les logs pour mieux diagnostiquer les problèmes
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Charger les variables d'environnement
+# Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
 
 # Configuration du bot Discord
 intents = discord.Intents.default()
 intents.message_content = True
-intents.reactions = True
+intents.reactions = True  # Activer les intents pour les réactions
 client = discord.Client(intents=intents)
 translator = Translator()
 
@@ -50,10 +50,8 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:  # Ignorer les messages du bot lui-même
+    if message.author == client.user:
         return
-
-    logger.info(f"Message reçu dans {message.channel.name} par {message.author.name}: {message.content}")
 
     # Gestion des salons existants avec redirection
     if message.channel.name in channels:
@@ -86,12 +84,12 @@ async def on_message(message):
                         await target_channel.send(f"Erreur : {e}")
 
     # Nouvelle fonctionnalité pour "event-test"
-    elif message.channel.name == "event-test" and not message.author.bot:
+    if message.channel.name == "event-test" and not message.author.bot:
         try:
             # Ajouter les réactions avec un délai pour éviter le rate limit
             for flag in lang_map.keys():
                 await message.add_reaction(flag)
-                await asyncio.sleep(0.5)  # Délai de 0.5 seconde
+                await asyncio.sleep(0.5)  # Délai de 0.5 seconde entre chaque réaction
         except Exception as e:
             logger.error(f"Erreur lors de l'ajout des réactions : {e}")
 
@@ -101,17 +99,17 @@ async def on_reaction_add(reaction, user):
         return
 
     # Utiliser reaction.emoji directement (c'est une string)
-    emoji = str(reaction.emoji)
+    emoji = str(reaction.emoji)  # "🇫🇷", "🇬🇧", etc.
     target_lang = lang_map.get(emoji)
     
-    if target_lang and reaction.message.content:
+    if target_lang and reaction.message.content:  # Vérifier qu'il y a du contenu à traduire
         try:
             logger.info(f"Réaction détectée : {emoji} par {user.name}, traduction en {target_lang}")
             translated = translator.translate(reaction.message.content, dest=target_lang).text
             reply = await reaction.message.channel.send(
                 f"{user.mention}, traduction en {target_lang}: {translated}"
             )
-            await asyncio.sleep(10)
+            await asyncio.sleep(10)  # Attendre 10 secondes
             await reply.delete()
         except Exception as e:
             logger.error(f"Erreur lors de la traduction : {e}")
@@ -128,9 +126,9 @@ def home():
 
 @app.route('/ping')
 def ping():
-    return "OK", 200
+    return "OK", 200  # Route keep-alive
 
-# Fonction pour lancer le bot Discord avec reconnexion
+# Fonction pour lancer le bot Discord avec reconnexion en cas d'erreur
 def run_bot():
     while True:
         try:
@@ -139,11 +137,13 @@ def run_bot():
         except Exception as e:
             logger.error(f"Le bot s'est arrêté avec une erreur : {e}")
             logger.info("Tentative de reconnexion dans 5 secondes...")
-            threading.Event().wait(5)
+            threading.Event().wait(5)  # Attendre 5 secondes avant de relancer
 
 # Lancer Flask et le bot en parallèle
 if __name__ == "__main__":
+    # Démarrer le bot dans un thread
     bot_thread = threading.Thread(target=run_bot)
     bot_thread.daemon = True
     bot_thread.start()
+    # Démarrer le serveur Flask dans le thread principal
     app.run(host='0.0.0.0', port=8080, debug=False)
