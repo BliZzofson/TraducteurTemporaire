@@ -80,10 +80,9 @@ async def on_message(message):
                                 formatted_message += f"\n{sticker_info}"
                                 content_added = True
 
-                            # Ajouter les GIFs ou autres attachments
+                            # Ajouter "GIF" pour les attachments (au lieu de l'URL)
                             if message.attachments:
-                                attachment_urls = "\n".join([attachment.url for attachment in message.attachments])
-                                formatted_message += f"\n{attachment_urls}"
+                                formatted_message += "\nGIF"
                                 content_added = True
 
                             # Si rien n'a été ajouté
