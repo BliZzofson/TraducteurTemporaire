@@ -109,7 +109,7 @@ async def on_reaction_add(reaction, user):
             logger.info(f"Réaction détectée : {emoji} par {user.name}, traduction en {target_lang}")
             translated = translator.translate(reaction.message.content, dest=target_lang).text
             reply = await reaction.message.channel.send(
-                f"{user.mention} {translated}"  # Supprimé "traduction en {target_lang}:"
+                f"{user.mention}, traduction en {target_lang}: {translated}"
             )
             await asyncio.sleep(10)
             await reply.delete()
