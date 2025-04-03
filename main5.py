@@ -68,28 +68,15 @@ async def on_message(message):
 
                         # Gérer le texte s'il existe
                         if message.content:
-                            # Traduire le texte (y compris les emojis s'ils sont mélangés avec du texte)
                             translated = translator.translate(message.content, src=source_lang, dest=target_lang).text
                             formatted_message += translated
                         else:
-                            # Gérer les cas sans texte (autocollants, GIFs, emojis seuls)
-                            content_added = False
+                            formatted_message += "(Pas de texte)"
 
-                            # Ajouter les autocollants (stickers)
-                            if message.stickers:
-                                sticker_info = "\n".join([f"Sticker: {sticker.name} ({sticker.url})" for sticker in message.stickers])
-                                formatted_message += f"\n{sticker_info}"
-                                content_added = True
-
-                            # Ajouter les GIFs ou autres attachments
-                            if message.attachments:
-                                attachment_urls = "\n".join([attachment.url for attachment in message.attachments])
-                                formatted_message += f"\n{attachment_urls}"
-                                content_added = True
-
-                            # Si rien n'a été ajouté (pas de texte, stickers ou attachments)
-                            if not content_added:
-                                formatted_message += "(Message vide)"
+                        # Gérer les images (attachments)
+                        if message.attachments:
+                            attachment_urls = "\n".join([attachment.url for attachment in message.attachments])
+                            formatted_message += f"\n{attachment_urls}"
 
                         # Envoyer le message au salon cible
                         await target_channel.send(formatted_message)
@@ -122,7 +109,7 @@ async def on_reaction_add(reaction, user):
             logger.info(f"Réaction détectée : {emoji} par {user.name}, traduction en {target_lang}")
             translated = translator.translate(reaction.message.content, dest=target_lang).text
             reply = await reaction.message.channel.send(
-                f"{user.mention} {translated}"
+                f"{user.mention} {translated}"  # Supprimé "traduction en {target_lang}:"
             )
             await asyncio.sleep(10)
             await reply.delete()
