@@ -75,9 +75,9 @@ async def on_message(message):
                             # Gérer les cas sans texte (autocollants, GIFs, emojis seuls)
                             content_added = False
 
-                            # Ajouter les autocollants (stickers) sans l'URL JSON
+                            # Ajouter les autocollants (stickers)
                             if message.stickers:
-                                sticker_info = "\n".join([f"Sticker: {sticker.name}" for sticker in message.stickers])
+                                sticker_info = "\n".join([f"Sticker: {sticker.name} ({sticker.url})" for sticker in message.stickers])
                                 formatted_message += f"\n{sticker_info}"
                                 content_added = True
 
