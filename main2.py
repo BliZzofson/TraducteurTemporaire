@@ -34,16 +34,6 @@ channels = {
     "general-kr": "ko"
 }
 
-# Mapping des drapeaux aux langues pour event-test
-lang_map = {
-    '🇫🇷': 'fr',  # Français
-    '🇬🇧': 'en',  # Anglais
-    '🇺🇦': 'uk',  # Ukrainien
-    '🇪🇸': 'es',  # Espagnol
-    '🇩🇪': 'de',  # Allemand
-    '🇰🇷': 'ko'   # Coréen
-}
-
 @client.event
 async def on_ready():
     logger.info(f"Connecté en tant que {client.user}")
@@ -83,13 +73,15 @@ async def on_message(message):
                         logger.error(f"Erreur lors du traitement du message vers {target_lang} : {e}")
                         await target_channel.send(f"Erreur : {e}")
 
-    # Nouvelle fonctionnalité pour "event-test"
+    # Nouvelle fonctionnalité pour "event test"
     if message.channel.name == "event-test" and not message.author.bot:
         try:
-            # Ajouter les réactions avec un délai pour éviter le rate limit
-            for flag in lang_map.keys():
-                await message.add_reaction(flag)
-                await asyncio.sleep(0.5)  # Délai de 0.5 seconde entre chaque réaction
+            await message.add_reaction('🇫🇷')  # Français
+            await message.add_reaction('🇬🇧')  # Anglais
+            await message.add_reaction('🇺🇦')  # Ukrainien
+            await message.add_reaction('🇪🇸')  # Espagnol
+            await message.add_reaction('🇩🇪')  # Allemand
+            await message.add_reaction('🇰🇷')  # Coréen
         except Exception as e:
             logger.error(f"Erreur lors de l'ajout des réactions : {e}")
 
@@ -98,22 +90,28 @@ async def on_reaction_add(reaction, user):
     if user.bot or reaction.message.channel.name != "event-test":
         return
 
-    # Utiliser reaction.emoji directement (c'est une string)
-    emoji = str(reaction.emoji)  # "🇫🇷", "🇬🇧", etc.
-    target_lang = lang_map.get(emoji)
-    
-    if target_lang and reaction.message.content:  # Vérifier qu'il y a du contenu à traduire
+    lang_map = {
+        '🇫🇷': 'fr',  # Français
+        '🇬🇧': 'en',  # Anglais
+        '🇺🇦': 'uk',  # Ukrainien
+        '🇪🇸': 'es',  # Espagnol
+        '🇩🇪': 'de',  # Allemand
+        '🇰🇷': 'ko'   # Coréen
+    }
+
+    target_lang = lang_map.get(reaction.emoji.name)
+    if target_lang:
         try:
-            logger.info(f"Réaction détectée : {emoji} par {user.name}, traduction en {target_lang}")
             translated = translator.translate(reaction.message.content, dest=target_lang).text
             reply = await reaction.message.channel.send(
                 f"{user.mention}, traduction en {target_lang}: {translated}"
             )
-            await asyncio.sleep(10)  # Attendre 10 secondes
+            # Supprime le message après 10 secondes
+            await asyncio.sleep(10)
             await reply.delete()
         except Exception as e:
-            logger.error(f"Erreur lors de la traduction : {e}")
-            error_msg = await reaction.message.channel.send(f"{user.mention}, erreur lors de la traduction.")
+            logger.error(f"Erreur lors de la traduction ou de l'envoi : {e}")
+            error_msg = await reaction.message.channel.send("Erreur lors de la traduction.")
             await asyncio.sleep(10)
             await error_msg.delete()
 
