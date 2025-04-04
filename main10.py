@@ -34,11 +34,11 @@ channels = {
     "general-kr": "ko"
 }
 
-# Mapping des drapeaux aux langues (limité à 3)
+# Mapping des drapeaux aux langues pour event-test (limité à 3 pour réduire la charge)
 lang_map = {
-    '🇫🇷': 'fr',
-    '🇬🇧': 'en',
-    '🇪🇸': 'es'
+    '🇫🇷': 'fr',  # Français
+    '🇬🇧': 'en',  # Anglais
+    '🇪🇸': 'es'   # Espagnol
 }
 
 @client.event
@@ -47,12 +47,12 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:
+    if message.author == client.user:  # Ignorer les messages du bot lui-même
         return
 
     logger.info(f"Message reçu dans {message.channel.name} par {message.author.name}: {message.content}")
 
-    # Gestion des salons existants
+    # Gestion des salons existants avec redirection
     if message.channel.name in channels:
         source_lang = channels[message.channel.name]
         for channel_name, target_lang in channels.items():
@@ -60,7 +60,10 @@ async def on_message(message):
                 target_channel = discord.utils.get(message.guild.channels, name=channel_name)
                 if target_channel:
                     try:
+                        # Préparer le message à envoyer
                         formatted_message = f"**{message.author.name}**: "
+
+                        # Gérer le texte s'il existe
                         if message.content:
                             translated = translator.translate(message.content, src=source_lang, dest=target_lang).text
                             formatted_message += translated
@@ -79,27 +82,30 @@ async def on_message(message):
 
                         logger.info(f"Envoi unique vers {channel_name}: {formatted_message}")
                         await target_channel.send(formatted_message)
+
                     except Exception as e:
-                        logger.error(f"Erreur lors du traitement du message vers {target_lang} : {e}", exc_info=True)
+                        logger.error(f"Erreur lors du traitement du message vers {target_lang} : {e}")
                         await target_channel.send(f"Erreur : {e}")
 
-    # Gestion de "event-test"
+    # Gestion de "event-test" avec limitation des réactions
     elif message.channel.name == "event-test" and not message.author.bot:
         try:
+            # Ajouter les réactions avec gestion des rate limits
             for flag in lang_map.keys():
                 try:
                     await message.add_reaction(flag)
-                    await discord.utils.sleep_until(datetime.now() + timedelta(seconds=2))  # Délai plus long
+                    await client.wait_for('rate_limited', timeout=1.0)  # Attendre si rate limit
                 except discord.HTTPException as e:
-                    logger.error(f"Rate limit ou erreur lors de l'ajout de {flag} : {e}", exc_info=True)
-                    await message.channel.send(f"Erreur : impossible d'ajouter {flag} (rate limit ?)")
+                    logger.error(f"Rate limit lors de l'ajout de {flag} : {e}")
+                    await message.channel.send(f"Rate limit atteint, réaction {flag} non ajoutée.")
                     break
+                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=1))  # Délai de 1 seconde
         except Exception as e:
-            logger.error(f"Erreur générale lors de l'ajout des réactions : {e}", exc_info=True)
+            logger.error(f"Erreur lors de l'ajout des réactions : {e}")
 
 @client.event
 async def on_reaction_add(reaction, user):
-    if user == client.user or reaction.message.channel.name != "event-test" or reaction.message.author == client.user:
+    if user == client.user or reaction.message.channel.name != "event-test":
         return
 
     emoji = str(reaction.emoji)
@@ -112,12 +118,12 @@ async def on_reaction_add(reaction, user):
                 logger.info(f"Réaction détectée : {emoji} par {user.name}, traduction en {target_lang}")
                 translated = translator.translate(message.content, dest=target_lang).text
                 reply = await reaction.message.channel.send(f"{user.mention} {translated}")
-                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=10))
+                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=10))  # Attente avant suppression
                 await reply.delete()
             else:
                 logger.info(f"Message sans contenu texte : {message.id}")
         except Exception as e:
-            logger.error(f"Erreur lors de la traduction : {e}", exc_info=True)
+            logger.error(f"Erreur lors de la traduction : {e}")
             error_msg = await reaction.message.channel.send(f"{user.mention}, erreur lors de la traduction.")
             await discord.utils.sleep_until(datetime.now() + timedelta(seconds=10))
             await error_msg.delete()
@@ -133,7 +139,7 @@ def home():
 def ping():
     return "OK", 200
 
-# Fonction pour lancer le bot Discord
+# Fonction pour lancer le bot Discord avec reconnexion
 def run_bot():
     while True:
         try:
