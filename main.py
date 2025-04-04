@@ -81,7 +81,7 @@ async def on_message(message):
             # Ajouter les réactions avec un délai pour éviter les rate limits
             for flag in lang_map.keys():
                 await message.add_reaction(flag)
-                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=2))  # Délai de 2 secondes
+                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=1))  # Délai de 1 secondes
         except discord.HTTPException as e:
             logger.error(f"Rate limit ou erreur lors de l'ajout de la réaction {flag} : {e}", exc_info=True)
         except Exception as e:
