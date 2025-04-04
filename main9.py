@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from flask import Flask
 import threading
 import logging
-from datetime import datetime, timedelta
+import asyncio
 
 # Configurer les logs
 logging.basicConfig(level=logging.INFO)
@@ -34,11 +34,14 @@ channels = {
     "general-kr": "ko"
 }
 
-# Mapping des drapeaux aux langues pour event-test (limité à 3 pour réduire la charge)
+# Mapping des drapeaux aux langues pour event-test
 lang_map = {
     '🇫🇷': 'fr',  # Français
     '🇬🇧': 'en',  # Anglais
-    '🇪🇸': 'es'   # Espagnol
+    '🇺🇦': 'uk',  # Ukrainien
+    '🇪🇸': 'es',  # Espagnol
+    '🇩🇪': 'de',  # Allemand
+    '🇰🇷': 'ko'   # Coréen
 }
 
 @client.event
@@ -68,18 +71,26 @@ async def on_message(message):
                             translated = translator.translate(message.content, src=source_lang, dest=target_lang).text
                             formatted_message += translated
                         else:
+                            # Gérer les cas sans texte (autocollants, GIFs, emojis seuls)
                             content_added = False
+
+                            # Ajouter les autocollants (stickers) sans l'URL JSON
                             if message.stickers:
                                 sticker_info = "\n".join([f"Sticker: {sticker.name}" for sticker in message.stickers])
                                 formatted_message += f"\n{sticker_info}"
                                 content_added = True
+
+                            # Ajouter les GIFs ou autres attachments
                             if message.attachments:
                                 attachment_urls = "\n".join([attachment.url for attachment in message.attachments])
                                 formatted_message += f"\n{attachment_urls}"
                                 content_added = True
+
+                            # Si rien n'a été ajouté
                             if not content_added:
                                 formatted_message += "(Message vide)"
 
+                        # Envoyer le message au salon cible
                         logger.info(f"Envoi unique vers {channel_name}: {formatted_message}")
                         await target_channel.send(formatted_message)
 
@@ -87,45 +98,43 @@ async def on_message(message):
                         logger.error(f"Erreur lors du traitement du message vers {target_lang} : {e}")
                         await target_channel.send(f"Erreur : {e}")
 
-    # Gestion de "event-test" avec limitation des réactions
+    # Nouvelle fonctionnalité pour "event-test"
     elif message.channel.name == "event-test" and not message.author.bot:
         try:
-            # Ajouter les réactions avec gestion des rate limits
+            # Ajouter les réactions avec un délai pour éviter le rate limit
             for flag in lang_map.keys():
-                try:
-                    await message.add_reaction(flag)
-                    await client.wait_for('rate_limited', timeout=1.0)  # Attendre si rate limit
-                except discord.HTTPException as e:
-                    logger.error(f"Rate limit lors de l'ajout de {flag} : {e}")
-                    await message.channel.send(f"Rate limit atteint, réaction {flag} non ajoutée.")
-                    break
-                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=1))  # Délai de 1 seconde
+                await message.add_reaction(flag)
+                await asyncio.sleep(0.5)  # Délai de 0.5 seconde
         except Exception as e:
             logger.error(f"Erreur lors de l'ajout des réactions : {e}")
 
 @client.event
 async def on_reaction_add(reaction, user):
-    if user == client.user or reaction.message.channel.name != "event-test":
+    if user == client.user or reaction.message.channel.name != "event-test":  # Ignorer les réactions du bot
         return
 
+    # Utiliser reaction.emoji directement (c'est une string)
     emoji = str(reaction.emoji)
     target_lang = lang_map.get(emoji)
     
     if target_lang:
         try:
+            # Récupérer le message complet depuis Discord si nécessaire
             message = await reaction.message.channel.fetch_message(reaction.message.id)
-            if message.content:
+            if message.content:  # Vérifier si le message a du contenu après récupération
                 logger.info(f"Réaction détectée : {emoji} par {user.name}, traduction en {target_lang}")
                 translated = translator.translate(message.content, dest=target_lang).text
-                reply = await reaction.message.channel.send(f"{user.mention} {translated}")
-                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=10))  # Attente avant suppression
+                reply = await reaction.message.channel.send(
+                    f"{user.mention} {translated}"
+                )
+                await asyncio.sleep(10)
                 await reply.delete()
             else:
                 logger.info(f"Message sans contenu texte : {message.id}")
         except Exception as e:
             logger.error(f"Erreur lors de la traduction : {e}")
             error_msg = await reaction.message.channel.send(f"{user.mention}, erreur lors de la traduction.")
-            await discord.utils.sleep_until(datetime.now() + timedelta(seconds=10))
+            await asyncio.sleep(10)
             await error_msg.delete()
 
 # Configuration du serveur Flask
@@ -146,7 +155,7 @@ def run_bot():
             logger.info("Démarrage du bot Discord...")
             client.run(os.getenv("DISCORD_TOKEN"))
         except Exception as e:
-            logger.error(f"Erreur fatale dans run_bot : {e}", exc_info=True)
+            logger.error(f"Le bot s'est arrêté avec une erreur : {e}")
             logger.info("Tentative de reconnexion dans 5 secondes...")
             threading.Event().wait(5)
 
