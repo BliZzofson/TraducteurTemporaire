@@ -7,17 +7,17 @@ import threading
 import logging
 from datetime import datetime, timedelta
 
-# Configurer les logs pour mieux diagnostiquer les problèmes
+# Configurer les logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Charger les variables d'environnement depuis le fichier .env
+# Charger les variables d'environnement
 load_dotenv()
 
 # Configuration du bot Discord
 intents = discord.Intents.default()
 intents.message_content = True
-intents.reactions = True  # Ajouté pour gérer les réactions dans event-test
+intents.reactions = True
 client = discord.Client(intents=intents)
 translator = Translator()
 
@@ -34,11 +34,11 @@ channels = {
     "general-kr": "ko"
 }
 
-# Mapping des drapeaux aux langues pour event-test (limité à 3 pour éviter les rate limits)
+# Mapping des drapeaux aux langues (limité à 3)
 lang_map = {
-    '🇫🇷': 'fr',  # Français
-    '🇬🇧': 'en',  # Anglais
-    '🇪🇸': 'es'   # Espagnol
+    '🇫🇷': 'fr',
+    '🇬🇧': 'en',
+    '🇪🇸': 'es'
 }
 
 @client.event
@@ -50,7 +50,9 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    # Gestion des salons de traduction
+    logger.info(f"Message reçu dans {message.channel.name} par {message.author.name}: {message.content}")
+
+    # Gestion des salons existants
     if message.channel.name in channels:
         source_lang = channels[message.channel.name]
         for channel_name, target_lang in channels.items():
@@ -63,26 +65,37 @@ async def on_message(message):
                             translated = translator.translate(message.content, src=source_lang, dest=target_lang).text
                             formatted_message += translated
                         else:
-                            formatted_message += "(Pas de texte)"
-                        if message.attachments:
-                            attachment_urls = "\n".join([attachment.url for attachment in message.attachments])
-                            formatted_message += f"\n{attachment_urls}"
+                            content_added = False
+                            if message.stickers:
+                                sticker_info = "\n".join([f"Sticker: {sticker.name}" for sticker in message.stickers])
+                                formatted_message += f"\n{sticker_info}"
+                                content_added = True
+                            if message.attachments:
+                                attachment_urls = "\n".join([attachment.url for attachment in message.attachments])
+                                formatted_message += f"\n{attachment_urls}"
+                                content_added = True
+                            if not content_added:
+                                formatted_message += "(Message vide)"
+
+                        logger.info(f"Envoi unique vers {channel_name}: {formatted_message}")
                         await target_channel.send(formatted_message)
                     except Exception as e:
-                        logger.error(f"Erreur lors du traitement du message vers {target_lang} : {e}")
+                        logger.error(f"Erreur lors du traitement du message vers {target_lang} : {e}", exc_info=True)
                         await target_channel.send(f"Erreur : {e}")
 
-    # Gestion du salon event-test
+    # Gestion de "event-test"
     elif message.channel.name == "event-test" and not message.author.bot:
         try:
-            # Ajouter les réactions avec un délai pour éviter les rate limits
             for flag in lang_map.keys():
-                await message.add_reaction(flag)
-                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=2))  # Délai de 2 secondes
-        except discord.HTTPException as e:
-            logger.error(f"Rate limit ou erreur lors de l'ajout de la réaction {flag} : {e}", exc_info=True)
+                try:
+                    await message.add_reaction(flag)
+                    await discord.utils.sleep_until(datetime.now() + timedelta(seconds=2))  # Délai plus long
+                except discord.HTTPException as e:
+                    logger.error(f"Rate limit ou erreur lors de l'ajout de {flag} : {e}", exc_info=True)
+                    await message.channel.send(f"Erreur : impossible d'ajouter {flag} (rate limit ?)")
+                    break
         except Exception as e:
-            logger.error(f"Erreur générale dans event-test : {e}", exc_info=True)
+            logger.error(f"Erreur générale lors de l'ajout des réactions : {e}", exc_info=True)
 
 @client.event
 async def on_reaction_add(reaction, user):
@@ -104,7 +117,7 @@ async def on_reaction_add(reaction, user):
             else:
                 logger.info(f"Message sans contenu texte : {message.id}")
         except Exception as e:
-            logger.error(f"Erreur lors de la traduction pour la réaction {emoji} : {e}", exc_info=True)
+            logger.error(f"Erreur lors de la traduction : {e}", exc_info=True)
             error_msg = await reaction.message.channel.send(f"{user.mention}, erreur lors de la traduction.")
             await discord.utils.sleep_until(datetime.now() + timedelta(seconds=10))
             await error_msg.delete()
@@ -118,16 +131,16 @@ def home():
 
 @app.route('/ping')
 def ping():
-    return "OK", 200  # Route keep-alive
+    return "OK", 200
 
-# Fonction pour lancer le bot Discord avec reconnexion
+# Fonction pour lancer le bot Discord
 def run_bot():
     while True:
         try:
             logger.info("Démarrage du bot Discord...")
             client.run(os.getenv("DISCORD_TOKEN"))
         except Exception as e:
-            logger.error(f"Le bot s'est arrêté avec une erreur : {e}", exc_info=True)
+            logger.error(f"Erreur fatale dans run_bot : {e}", exc_info=True)
             logger.info("Tentative de reconnexion dans 5 secondes...")
             threading.Event().wait(5)
 
