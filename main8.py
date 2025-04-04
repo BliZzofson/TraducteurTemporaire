@@ -117,20 +117,15 @@ async def on_reaction_add(reaction, user):
     emoji = str(reaction.emoji)
     target_lang = lang_map.get(emoji)
     
-    if target_lang:
+    if target_lang and reaction.message.content:
         try:
-            # Récupérer le message complet depuis Discord si nécessaire
-            message = await reaction.message.channel.fetch_message(reaction.message.id)
-            if message.content:  # Vérifier si le message a du contenu après récupération
-                logger.info(f"Réaction détectée : {emoji} par {user.name}, traduction en {target_lang}")
-                translated = translator.translate(message.content, dest=target_lang).text
-                reply = await reaction.message.channel.send(
-                    f"{user.mention} {translated}"
-                )
-                await asyncio.sleep(10)
-                await reply.delete()
-            else:
-                logger.info(f"Message sans contenu texte : {message.id}")
+            logger.info(f"Réaction détectée : {emoji} par {user.name}, traduction en {target_lang}")
+            translated = translator.translate(reaction.message.content, dest=target_lang).text
+            reply = await reaction.message.channel.send(
+                f"{user.mention} {translated}"
+            )
+            await asyncio.sleep(10)
+            await reply.delete()
         except Exception as e:
             logger.error(f"Erreur lors de la traduction : {e}")
             error_msg = await reaction.message.channel.send(f"{user.mention}, erreur lors de la traduction.")
