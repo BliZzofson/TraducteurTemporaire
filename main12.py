@@ -17,7 +17,7 @@ load_dotenv()
 # Configuration du bot Discord
 intents = discord.Intents.default()
 intents.message_content = True
-intents.reactions = True  # Pour gérer les réactions dans event-test
+intents.reactions = True  # Ajouté pour gérer les réactions dans event-test
 client = discord.Client(intents=intents)
 translator = Translator()
 
@@ -34,14 +34,11 @@ channels = {
     "general-kr": "ko"
 }
 
-# Mapping des drapeaux aux langues pour event-test (6 langues demandées)
+# Mapping des drapeaux aux langues pour event-test (limité à 3 pour éviter les rate limits)
 lang_map = {
     '🇫🇷': 'fr',  # Français
     '🇬🇧': 'en',  # Anglais
-    '🇪🇸': 'es',  # Espagnol
-    '🇺🇦': 'uk',  # Ukrainien
-    '🇩🇪': 'de',  # Allemand
-    '🇰🇷': 'ko'   # Coréen
+    '🇪🇸': 'es'   # Espagnol
 }
 
 @client.event
@@ -81,7 +78,7 @@ async def on_message(message):
             # Ajouter les réactions avec un délai pour éviter les rate limits
             for flag in lang_map.keys():
                 await message.add_reaction(flag)
-                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=2))  # Délai de 2 secondes
+                await discord.utils.sleep_until(datetime.now() + timedelta(seconds=1))  # Délai de 1 secondes
         except discord.HTTPException as e:
             logger.error(f"Rate limit ou erreur lors de l'ajout de la réaction {flag} : {e}", exc_info=True)
         except Exception as e:
